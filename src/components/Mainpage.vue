@@ -1,5 +1,6 @@
 <script setup  lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import axios from "axios";
 
 interface Trip {
@@ -16,6 +17,8 @@ const searchQuery = ref<string>('');
 
 // API base
 const API_BASE = "https://server-springboot-1.onrender.com/api/trips";
+
+const router = useRouter();
 
 const fetchAll = async () => {
   loading.value = true;
@@ -60,7 +63,8 @@ onMounted(async () => {
 });
 
 const openDetail = (trip: Trip) => {
-  alert("กำลังเปิดรายละเอียด: " + trip.title);
+  // ไปหน้า detail โดยส่ง id เป็น param
+  router.push(`/detail/${trip.id}`);
 };
 
 const truncateText = (text: string | undefined, maxLength: number): string => {
