@@ -1,14 +1,15 @@
-<script setup lang="ts">
-import MainPage from './components/MainPage.vue';
-
-
+<script setup>
+import { RouterLink, RouterView } from "vue-router";
 </script>
 
 <template>
-
-<MainPage/>
+  <nav>
+    <RouterLink to="/"></RouterLink>
+  </nav>
+  <main>
+    <RouterView />
+  </main>
 </template>
 
-<style scoped>
 
-</style>
+
