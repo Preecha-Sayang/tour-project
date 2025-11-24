@@ -1,34 +1,466 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+<script setup  lang="ts">
+import { ref, onMounted } from "vue";
+import axios from "axios";
+interface Trip {
+  id: number;
+  title: string;
+  description: string;
+  tags: string[];
+  photos: string[];
+}
 
-const trips = ref([]);
+const trips = ref<Trip[]>([]);
+const loading = ref<boolean>(true);
+const searchQuery = ref<string>('');
+
+// API base
+const API_BASE = "https://server-springboot-1.onrender.com/api/trips";
+
+const fetchAll = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get<Trip[]>(API_BASE);
+    trips.value = response.data;
+  } catch (error) {
+    console.error("Error fetching trips:", error);
+    trips.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+const searchServer = async (keyword: string) => {
+  loading.value = true;
+  try {
+    const response = await axios.get<Trip[]>(`${API_BASE}/search`, {
+      params: { keyword },
+    });
+    trips.value = response.data;
+  } catch (error) {
+    console.error("Error searching trips:", error);
+    trips.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+// ฟังก์ชันที่เรียกเมื่อกดปุ่ม "ค้นหา"
+const performSearch = async () => {
+  const q = searchQuery.value?.trim() ?? "";
+  if (q === "") {
+    await fetchAll();
+  } else {
+    await searchServer(q);
+  }
+};
 
 onMounted(async () => {
-  try {
-    const response = await axios.get('https://server-springboot-1.onrender.com/api/trips');
-    trips.value = response.data;
-    console.log(trips.value);
-  } catch (error) {
-    console.error('Error fetching trips:', error);
-  }
+  await fetchAll();
 });
+
+const openDetail = (trip: Trip) => {
+  alert("กำลังเปิดรายละเอียด: " + trip.title);
+};
+
+const truncateText = (text: string | undefined, maxLength: number): string => {
+  if (!text) return '';
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+};
 </script>
 
-
 <template>
-  <div>
-    <h1>All Trips</h1>
-    <ul>
-      <li v-for="trip in trips" :key="trip.id">
-        {{ trip.title }} - {{ trip.province }}
+  <header>
+    <nav>
+      <div class="logo"  > เที่ยวไหนดี</div>
+      <ul class="nav-links">
+        <li><a href="#contact">เข้าสู่ระบบ</a></li>
+      </ul>
+    </nav>
+  </header>
 
-      </li>
-    </ul>
+  <section class="hero">
+    <div class="container">
+      <h1>ค้นพบสถานที่ท่องเที่ยวสุดพิเศษ</h1>
+      <p>เที่ยวทั่วไทย พบประสบการณ์ที่น่าจดจำ</p>
+      <div class="search-bar">
+        <input 
+          type="text" 
+          placeholder="ค้นหาสถานที่ท่องเที่ยว..." 
+          v-model="searchQuery"
+        />
+        <!-- เปลี่ยนให้ปุ่มเป็น type="button" และเรียก performSearch เมื่อคลิก -->
+        <button type="button" @click="performSearch">ค้นหา</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <h2 class="section-title">สถานที่ยอดนิยม</h2>
+
+    <div v-if="loading" class="loading">
+      กำลังโหลดข้อมูล...
+    </div>
+
+    <div v-else-if="trips.length === 0" class="no-data">
+      ไม่พบข้อมูลที่ค้นหา
+    </div>
+
+    <div v-else class="destinations">
+      <div
+        class="destination-card"
+        v-for="trip in trips"
+        :key="trip.id"
+        @click="openDetail(trip)"
+      >
+        <div class="card-image-section">
+          <div
+            class="card-image-main"
+            :style="{
+              background: trip.photos && trip.photos.length > 0 
+                ? `linear-gradient(rgba(0,0,0,.2), rgba(0,0,0,.2)), url('${trip.photos[0]}')`
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }"
+          >
+            <div v-if="!trip.photos || trip.photos.length === 0" class="no-image-text">
+              ไม่มีรูปภาพ
+            </div>
+          </div>
+        </div>
+
+        <div class="card-content">
+          <div class="card-title">{{ trip.title }}</div>
+          <div class="card-description">{{ truncateText(trip.description, 150) }}</div>
+          
+          <div class="card-tags" v-if="trip.tags && trip.tags.length > 0">
+            🏷️ 
+            <span v-for="(tag, index) in trip.tags" :key="index">
+              <span class="tag-link">{{ tag }}</span>
+              <span v-if="index < trip.tags.length - 1"> • </span>
+            </span>
+          </div>
+          
+          <div class="card-thumbnails" v-if="trip.photos && trip.photos.length > 1">
+            <div 
+              class="thumbnail"
+              v-for="(image, index) in trip.photos.slice(1, 4)"
+              :key="index"
+              :style="{
+                backgroundImage: `url('${image}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }"
+            ></div>
+          </div>
+        </div>
+
+        <div class="card-link">
+          <a href="#" class="link-icon" @click.prevent>🔗</a>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <footer>
+    <p>&copy; 2024 เที่ยวไทย - ค้นพบความสุขในทุกการเดินทาง</p>
+  </footer>
 </template>
 
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-<style >
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
 
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-links {
+  display: flex;
+  gap: 30px;
+  list-style: none;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.nav-links a:hover {
+  color: #667eea;
+}
+
+.hero {
+  text-align: center;
+  padding: 60px 20px;
+  color: white;
+}
+
+.hero h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.hero p {
+  font-size: 20px;
+  margin-bottom: 30px;
+  opacity: 0.95;
+}
+
+.search-bar {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  background: white;
+  border-radius: 50px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.search-bar input {
+  flex: 1;
+  border: none;
+  padding: 18px 30px;
+  font-size: 16px;
+  outline: none;
+}
+
+.search-bar button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 18px 40px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.search-bar button:hover {
+  transform: scale(1.05);
+}
+
+.loading,
+.no-data {
+  text-align: center;
+  color: white;
+  font-size: 20px;
+  padding: 40px;
+}
+
+.destinations {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.destination-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  min-height: 220px;
+  position: relative;
+}
+
+.destination-card:hover {
+  transform: translateX(5px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.card-image-section {
+  width: 300px;
+  min-width: 300px;
+  padding: 15px;
+}
+
+.card-image-main {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+}
+
+.no-image-text {
+  color: white;
+  font-size: 18px;
+}
+
+.card-content {
+  padding: 25px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.card-description {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.card-tags {
+  color: #999;
+  margin-bottom: 15px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.tag-link {
+  color: #4A90E2;
+  text-decoration: underline;
+  margin: 0 2px;
+  cursor: pointer;
+}
+
+.tag-link:hover {
+  color: #667eea;
+}
+
+.card-thumbnails {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.thumbnail {
+  width: 90px;
+  height: 65px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+  border: 2px solid #f0f0f0;
+}
+
+.thumbnail:hover {
+  transform: scale(1.05);
+  border-color: #667eea;
+}
+
+.card-link {
+  display: flex;
+  align-items: center;
+  padding: 25px;
+}
+
+.link-icon {
+  font-size: 28px;
+  text-decoration: none;
+  transition: transform 0.2s, background 0.2s;
+  background: #f0f0f0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.link-icon:hover {
+  transform: rotate(45deg);
+  background: #667eea;
+}
+
+.section-title {
+  text-align: center;
+  color: white;
+  font-size: 36px;
+  margin: 60px 0 30px;
+}
+
+footer {
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  text-align: center;
+  padding: 30px;
+  margin-top: 60px;
+}
+
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 32px;
+  }
+
+  .nav-links {
+    gap: 15px;
+  }
+
+  .destination-card {
+    flex-direction: column;
+  }
+
+  .card-image-section {
+    width: 100%;
+  }
+
+  .card-image-main {
+    height: 220px;
+  }
+
+  .card-link {
+    display: none;
+  }
+}
 </style>
