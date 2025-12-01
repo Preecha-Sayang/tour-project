@@ -48,7 +48,6 @@ const searchServer = async (keyword: string) => {
   }
 };
 
-// ฟังก์ชันที่เรียกเมื่อกดปุ่ม "ค้นหา"
 const performSearch = async () => {
   const q = searchQuery.value?.trim() ?? "";
   if (q === "") {
@@ -70,6 +69,12 @@ const openDetail = (trip: Trip) => {
 const truncateText = (text: string | undefined, maxLength: number): string => {
   if (!text) return '';
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+};
+
+const copyLink = (e: Event, tripId: number) => {
+  e.stopPropagation();
+  const link = `${window.location.origin}/detail/${tripId}`;
+  navigator.clipboard.writeText(link);
 };
 </script>
 
@@ -154,7 +159,7 @@ const truncateText = (text: string | undefined, maxLength: number): string => {
         </div>
 
         <div class="card-link">
-          <a href="#" class="link-icon" @click.prevent>🔗</a>
+          <a href="#" class="link-icon" @click.prevent="copyLink($event, trip.id)" title="คัดลอก link">🔗</a>
         </div>
       </div>
     </div>
@@ -368,7 +373,7 @@ nav {
 
 .card-link {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   padding: 25px;
 }
 
