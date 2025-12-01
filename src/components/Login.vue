@@ -1,13 +1,24 @@
-
 <!-- LoginForm.vue -->
 <template>
   <div class="form-container">
+    <!-- ✅ แสดงข้อความสำเร็จ -->
+    <div v-if="success" class="alert alert-success">
+      ✅ เข้าสู่ระบบสำเร็จ! กำลังเปลี่ยนหน้า...
+    </div>
+
+    <!-- ✅ แสดงข้อความข้อผิดพลาด -->
+    <div v-if="error" class="alert alert-error">
+      ❌ {{ error }}
+    </div>
+
     <div class="form-group">
       <label>อีเมล</label>
       <input
         type="email"
         v-model="formData.email"
         @keyup.enter="handleSubmit"
+        :disabled="loading"
+        placeholder="example@email.com"
         required
       />
     </div>
@@ -17,6 +28,8 @@
         type="password"
         v-model="formData.password"
         @keyup.enter="handleSubmit"
+        :disabled="loading"
+        placeholder="กรอกรหัสผ่านของคุณ"
         required
       />
     </div>
@@ -27,23 +40,124 @@
 </template>
 
 <script>
+import axios from 'axios'
+
 export default {
   name: 'LoginForm',
-  props: {
-    loading: Boolean
-  },
   data() {
     return {
       formData: {
         email: '',
         password: ''
-      }
+      },
+      loading: false,
+      error: '',
+      success: false,
+      apiClient: axios.create({
+        baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
     }
   },
   methods: {
-    handleSubmit() {
-      if (this.formData.email && this.formData.password) {
-        this.$emit('submit', this.formData);
+    validateEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email)
+    },
+
+    validateForm() {
+      if (!this.formData.email.trim()) {
+        this.error = 'กรุณากรอกอีเมล'
+        return false
+      }
+
+      if (!this.validateEmail(this.formData.email)) {
+        this.error = 'รูปแบบอีเมลไม่ถูกต้อง'
+        return false
+      }
+
+      if (!this.formData.password) {
+        this.error = 'กรุณากรอกรหัสผ่าน'
+        return false
+      }
+
+      return true
+    },
+
+    async handleSubmit() {
+      if (!this.validateForm()) {
+        return
+      }
+
+      this.loading = true
+      this.error = ''
+      this.success = false
+
+      try {
+        const response = await this.apiClient.post('/api/users/login', {
+          email: this.formData.email.trim(),
+          password: this.formData.password
+        })
+
+        // ✅ เก็บ token ใน localStorage
+        // Response structure: { data: { token, id, email, displayName } } หรือ { token, id, email, displayName }
+        const tokenData = response.data.data || response.data
+        
+        if (tokenData?.token) {
+          localStorage.setItem('authToken', tokenData.token)
+          localStorage.setItem('userId', (tokenData.id || tokenData.userId)?.toString() || '')
+          localStorage.setItem('userEmail', tokenData.email || '')
+          localStorage.setItem('username', tokenData.displayName || tokenData.username || '')
+          
+          this.success = true
+          console.log('✅ Token saved successfully:', {
+            token: tokenData.token.substring(0, 20) + '...',
+            userId: tokenData.id || tokenData.userId,
+            email: tokenData.email
+          })
+        } else {
+          throw new Error('ไม่พบ token ในการตอบสนอง')
+        }
+
+        this.success = true
+        this.error = ''
+
+        // ✅ รีเซ็ตฟอร์ม
+        this.formData = {
+          email: '',
+          password: ''
+        }
+
+        console.log('Login success:', response.data)
+
+        // ✅ Emit event ให้ parent component
+        this.$emit('login-success', response.data)
+
+        // ✅ Redirect ไป home หรือ dashboard (ปรับตามต้องการ)
+        // setTimeout(() => {
+        //   window.location.href = '/dashboard'
+        // }, 1000)
+      } catch (err) {
+        if (err.response?.status === 400) {
+          this.error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+        } else if (err.response?.status === 401) {
+          this.error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+        } else if (err.response?.status === 404) {
+          this.error = 'ไม่พบผู้ใช้นี้ในระบบ'
+        } else if (err.response?.status === 500) {
+          this.error = 'เกิดข้อผิดพลาดบน server กรุณาลองใหม่'
+        } else if (err.message === 'Network Error') {
+          this.error = 'ไม่สามารถเชื่อมต่อกับ server'
+        } else {
+          this.error = err.response?.data?.message || 'เกิดข้อผิดพลาด'
+        }
+
+        console.error('Login error:', err)
+      } finally {
+        this.loading = false
       }
     }
   }
@@ -85,6 +199,11 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
 .submit-btn {
   width: 100%;
   padding: 12px;
@@ -106,8 +225,23 @@ input:focus {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alert-success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.alert-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
 </style>
-
-
-
-

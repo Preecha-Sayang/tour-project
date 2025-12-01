@@ -1,6 +1,6 @@
 <!-- AuthModal.vue -->
 
-<script>
+<script >
 import Login from './Login.vue';
 import Register from './Register.vue';
 
