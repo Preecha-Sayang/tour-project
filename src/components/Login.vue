@@ -41,15 +41,9 @@
 
 <script>
 import axios from 'axios'
-import { useRouter } from 'vue-router'
 
 export default {
   name: 'LoginForm',
-  setup() {
-    return {
-      router: useRouter()
-    }
-  },
   data() {
     return {
       formData: {
@@ -157,13 +151,9 @@ export default {
           password: ''
         }
 
-        // ✅ Emit event ให้ parent component
-        this.$emit('login-success', response.data)
+        // ✅ Emit event ให้ parent component (HeaderNav) ทำการปิด modal
+        this.$emit('submit', tokenData)
 
-        // ✅ Redirect ไปหน้า Home หลังจาก 1 วินาที
-        setTimeout(() => {
-          this.router.push('/')
-        }, 1000)
       } catch (err) {
         console.error('Login error:', err)
 

@@ -166,7 +166,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
   <div class="form-container">
     <!-- ✅ แสดงข้อความสำเร็จ -->
     <div v-if="success" class="alert alert-success">
-      ✅ ลงทะเบียนสำเร็จ! กำลังเปลี่ยนหน้า...
+      ✅ ลงทะเบียนสำเร็จ!
     </div>
 
     <!-- ✅ แสดงข้อความข้อผิดพลาด -->
