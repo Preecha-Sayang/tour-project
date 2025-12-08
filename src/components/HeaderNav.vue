@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import axios, { AxiosError } from 'axios'
 import LoginPopup from './LoginPopup.vue'
 
@@ -11,10 +12,6 @@ interface User {
   createdAt: string
 }
 
-interface LoginData {
-  email: string
-  password: string
-}
 
 interface RegisterData {
   username: string
@@ -70,36 +67,24 @@ onMounted(() => {
 })
 
 // ✅ Handle login
-async function handleLogin(loginData: LoginData): Promise<void> {
-  loading.value = true
-  error.value = ''
+async function handleLogin(): Promise<void> {
+  // ✅ ไม่ต้อง POST API เพราะ Login.vue ทำไปแล้ว
+  // เพียงแค่อ่าน localStorage ที่ Login.vue บันทึกไว้
+  
+  const token = localStorage.getItem('authToken')
+  const userEmail = localStorage.getItem('userEmail')
+  const userId = localStorage.getItem('userId')
+  const username = localStorage.getItem('username')
 
-  try {
-    const response = await axios.post(`${API_URL}/api/users/login`, loginData)
-
-    const userData = response.data.data || response.data
-
-    // เก็บ token ใน localStorage
-    if (userData.token) {
-      localStorage.setItem('authToken', userData.token)
-      localStorage.setItem('userId', userData.id?.toString() || '')
-      localStorage.setItem('userEmail', userData.email || '')
-      localStorage.setItem('username', userData.displayName || '')
-
-      user.value = {
-        id: userData.id,
-        email: userData.email,
-        displayName: userData.displayName,
-        createdAt: userData.createdAt
-      }
+  if (token && userEmail) {
+    user.value = {
+      id: parseInt(userId || '0'),
+      email: userEmail,
+      displayName: username || null,
+      createdAt: new Date().toISOString()
     }
-
     showModal.value = false
-  } catch (err) {
-    const axiosError = err as AxiosError<{ message: string }>
-    error.value = axiosError.response?.data?.message || 'เข้าสู่ระบบไม่สำเร็จ'
-  } finally {
-    loading.value = false
+    error.value = ''
   }
 }
 
@@ -171,15 +156,48 @@ const getUserInitial = computed(() => {
 const getUserName = computed(() => {
   return user.value?.displayName || user.value?.email || 'ผู้ใช้'
 })
+
+const router = useRouter()
+
+function handleNavigateHome(): void {
+  router.push('/')
+}
+
+// ✅ Watch localStorage สำหรับการเปลี่ยนแปลงจาก Login.vue
+watch(
+  () => localStorage.getItem('authToken'),
+  (newToken) => {
+    if (newToken) {
+      const userEmail = localStorage.getItem('userEmail')
+      const userId = localStorage.getItem('userId')
+      const username = localStorage.getItem('username')
+
+      user.value = {
+        id: parseInt(userId || '0'),
+        email: userEmail || '',
+        displayName: username || null,
+        createdAt: new Date().toISOString()
+      }
+
+      // ✅ ปิด modal ทันที
+      showModal.value = false
+      error.value = ''
+
+      console.log('✅ User logged in:', user.value)
+    }
+  }
+)
 </script>
 
 <template>
   <div>
     <header>
       <nav>
-        <div class="logo">
-        <img src="/logo.png" alt="logopage" > 
-          เที่ยวไหนดี
+        <div class="logo-link" @click="handleNavigateHome">
+          <div class="logo">
+          <img src="/logo.png" alt="logopage" > 
+            เที่ยวไหนดี
+          </div>
         </div>
         <ul class="nav-links">
           <li v-if="user" class="user-section">
@@ -243,6 +261,7 @@ const getUserName = computed(() => {
       @tab-change="handleTabChange"
       @login="handleLogin"
       @register="handleRegister"
+      @submit="handleLogin"
     />
   </div>
 </template>
@@ -265,6 +284,10 @@ nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.logo-link {
+  cursor: pointer;
 }
 
 .logo {

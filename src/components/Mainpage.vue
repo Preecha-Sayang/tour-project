@@ -12,8 +12,11 @@ interface Trip {
 }
 
 const trips = ref<Trip[]>([]);
+const allTrips = ref<Trip[]>([]);
 const loading = ref<boolean>(true);
 const searchQuery = ref<string>('');
+const itemsPerPage = 5;
+const displayedItems = ref<number>(itemsPerPage);
 
 // API base
 const API_BASE = "https://server-springboot-1.onrender.com/api/trips";
@@ -24,9 +27,11 @@ const fetchAll = async () => {
   loading.value = true;
   try {
     const response = await axios.get<Trip[]>(API_BASE);
-    trips.value = response.data;
+    allTrips.value = response.data;
+    trips.value = response.data.slice(0, displayedItems.value);
   } catch (error) {
     console.error("Error fetching trips:", error);
+    allTrips.value = [];
     trips.value = [];
   } finally {
     loading.value = false;
@@ -39,9 +44,12 @@ const searchServer = async (keyword: string) => {
     const response = await axios.get<Trip[]>(`${API_BASE}/search`, {
       params: { keyword },
     });
-    trips.value = response.data;
+    allTrips.value = response.data;
+    displayedItems.value = itemsPerPage;
+    trips.value = response.data.slice(0, displayedItems.value);
   } catch (error) {
     console.error("Error searching trips:", error);
+    allTrips.value = [];
     trips.value = [];
   } finally {
     loading.value = false;
@@ -55,6 +63,15 @@ const performSearch = async () => {
   } else {
     await searchServer(q);
   }
+};
+
+const loadMore = () => {
+  displayedItems.value += itemsPerPage;
+  trips.value = allTrips.value.slice(0, displayedItems.value);
+};
+
+const hasMore = () => {
+  return displayedItems.value < allTrips.value.length;
 };
 
 onMounted(async () => {
@@ -108,59 +125,65 @@ const copyLink = (e: Event, tripId: number) => {
       ไม่พบข้อมูลที่ค้นหา
     </div>
 
-    <div v-else class="destinations">
-      <div
-        class="destination-card"
-        v-for="trip in trips"
-        :key="trip.id"
-        @click="openDetail(trip)"
-      >
-        <div class="card-image-section">
-          <div
-            class="card-image-main"
-            :style="{
-              background: trip.photos && trip.photos.length > 0 
-                ? `linear-gradient(rgba(0,0,0,.2), rgba(0,0,0,.2)), url('${trip.photos[0]}')`
-                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }"
-          >
-            <div v-if="!trip.photos || trip.photos.length === 0" class="no-image-text">
-              ไม่มีรูปภาพ
-            </div>
-          </div>
-        </div>
-
-        <div class="card-content">
-          <div class="card-title">{{ trip.title }}</div>
-          <div class="card-description">{{ truncateText(trip.description, 150) }}</div>
-          
-          <div class="card-tags" v-if="trip.tags && trip.tags.length > 0">
-            🏷️ 
-            <span v-for="(tag, index) in trip.tags" :key="index">
-              <span class="tag-link">{{ tag }}</span>
-              <span v-if="index < trip.tags.length - 1"> • </span>
-            </span>
-          </div>
-          
-          <div class="card-thumbnails" v-if="trip.photos && trip.photos.length > 1">
-            <div 
-              class="thumbnail"
-              v-for="(image, index) in trip.photos.slice(1, 4)"
-              :key="index"
+    <div v-else>
+      <div class="destinations">
+        <div
+          class="destination-card"
+          v-for="trip in trips"
+          :key="trip.id"
+          @click="openDetail(trip)"
+        >
+          <div class="card-image-section">
+            <div
+              class="card-image-main"
               :style="{
-                backgroundImage: `url('${image}')`,
+                background: trip.photos && trip.photos.length > 0 
+                  ? `linear-gradient(rgba(0,0,0,.2), rgba(0,0,0,.2)), url('${trip.photos[0]}')`
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }"
-            ></div>
+            >
+              <div v-if="!trip.photos || trip.photos.length === 0" class="no-image-text">
+                ไม่มีรูปภาพ
+              </div>
+            </div>
+          </div>
+
+          <div class="card-content">
+            <div class="card-title">{{ trip.title }}</div>
+            <div class="card-description">{{ truncateText(trip.description, 150) }}</div>
+            
+            <div class="card-tags" v-if="trip.tags && trip.tags.length > 0">
+              🏷️ 
+              <span v-for="(tag, index) in trip.tags" :key="index">
+                <span class="tag-link">{{ tag }}</span>
+                <span v-if="index < trip.tags.length - 1"> • </span>
+              </span>
+            </div>
+            
+            <div class="card-thumbnails" v-if="trip.photos && trip.photos.length > 1">
+              <div 
+                class="thumbnail"
+                v-for="(image, index) in trip.photos.slice(1, 4)"
+                :key="index"
+                :style="{
+                  backgroundImage: `url('${image}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }"
+              ></div>
+            </div>
+          </div>
+
+          <div class="card-link">
+            <a href="#" class="link-icon" @click.prevent="copyLink($event, trip.id)" title="คัดลอก link">🔗</a>
           </div>
         </div>
+      </div>
 
-        <div class="card-link">
-          <a href="#" class="link-icon" @click.prevent="copyLink($event, trip.id)" title="คัดลอก link">🔗</a>
-        </div>
+      <div v-if="hasMore()" class="load-more-section">
+        <button @click="loadMore" class="load-more-btn">โหลดเพิ่มเติม</button>
       </div>
     </div>
   </div>
@@ -399,10 +422,32 @@ nav {
   text-align: center;
   color: white;
   font-size: 36px;
-  margin: 60px 0 30px;
+  margin: 0px 0 30px;
 }
 
+.load-more-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
 
+.load-more-btn {
+  padding: 14px 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.load-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
 
 @media (max-width: 768px) {
   .hero h1 {
