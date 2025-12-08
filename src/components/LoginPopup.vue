@@ -1,31 +1,33 @@
 <!-- AuthModal.vue -->
+<script setup lang="ts">
+import { ref } from 'vue'
+import Login from './Login.vue'
+import Register from './Register.vue'
 
-<script >
-import Login from './Login.vue';
-import Register from './Register.vue';
+interface Props {
+  show: boolean
+  error: string
+  loading: boolean
+}
 
-export default {
-  name: 'AuthModal',
-  components: {
-    Login,
-    Register
-  },
-  props: {
-    show: Boolean,
-    error: String,
-    loading: Boolean
-  },
-  data() {
-    return {
-      isLogin: true
-    }
-  },
-  methods: {
-    switchTab(isLogin) {
-      this.isLogin = isLogin;
-      this.$emit('tab-change', isLogin);
-    }
-  }
+withDefaults(defineProps<Props>(), {
+  show: false,
+  error: '',
+  loading: false
+})
+
+const emit = defineEmits<{
+  close: []
+  'tab-change': [isLogin: boolean]
+  login: [data: unknown]
+  register: [data: unknown]
+}>()
+
+const isLogin = ref(true)
+
+const switchTab = (loginMode: boolean) => {
+  isLogin.value = loginMode
+  emit('tab-change', loginMode)
 }
 </script>
 

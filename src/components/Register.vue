@@ -106,7 +106,8 @@ const handleSubmit = async (): Promise<void> => {
     const response = await apiClient.post<ApiResponse>('/api/users/register', {
       username: formData.value.username.trim(),
       email: formData.value.email.trim(),
-      password: formData.value.password
+      password: formData.value.password,
+      displayName: formData.value.username.trim()
     })
 
     // ✅ ตรวจสอบการตอบสนอง

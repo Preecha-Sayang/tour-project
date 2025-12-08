@@ -1,4 +1,210 @@
 <!-- LoginForm.vue -->
+<script setup lang="ts">
+import { ref } from 'vue'
+import axios, { AxiosError } from 'axios'
+
+interface FormData {
+  email: string
+  password: string
+}
+
+interface LoginResponse {
+  token: string
+  id?: number
+  userId?: number
+  email: string
+  displayName?: string
+  username?: string
+}
+
+interface Props {
+  loading: boolean
+}
+
+defineProps<Props>()
+
+const emit = defineEmits<{
+  submit: [data: LoginResponse]
+}>()
+
+const formData = ref<FormData>({
+  email: '',
+  password: ''
+})
+
+const localLoading = ref(false)
+const error = ref('')
+const success = ref(false)
+
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const validatePassword = (password: string): boolean => {
+  return  password.length >= 1
+}
+
+const validateForm = (): boolean => {
+  // ✅ ตรวจสอบอีเมล (ต้องไม่ว่าง)
+  if (!formData.value.email || !formData.value.email.trim()) {
+    error.value = 'กรุณากรอกอีเมล'
+    return false
+  }
+
+  // ✅ ตรวจสอบรูปแบบอีเมล
+  if (!validateEmail(formData.value.email.trim())) {
+    error.value = 'รูปแบบอีเมลไม่ถูกต้อง (เช่น example@email.com)'
+    return false
+  }
+
+  // ✅ ตรวจสอบรหัสผ่าน (ต้องไม่ว่าง)
+  if (!formData.value.password) {
+    error.value = 'กรุณากรอกรหัสผ่าน'
+    return false
+  }
+
+  // ✅ ตรวจสอบความยาวรหัสผ่าน
+  if (!validatePassword(formData.value.password)) {
+    error.value = 'รหัสผ่านต้องมีความยาวอย่างน้อย 1 ตัวอักษร'
+    return false
+  }
+
+  return true
+}
+
+const handleSubmit = async (): Promise<void> => {
+  // ✅ ล้างข้อความข้อผิดพลาดเดิม
+  error.value = ''
+
+  // ✅ ตรวจสอบฟอร์ม
+  if (!validateForm()) {
+    return
+  }
+
+  localLoading.value = true
+  success.value = false
+
+  try {
+    const response = await apiClient.post<{ data?: LoginResponse } | LoginResponse>(
+      '/api/users/login',
+      {
+        email: formData.value.email.trim(),
+        password: formData.value.password
+      }
+    )
+
+    // ✅ ตรวจสอบการตอบสนอง
+    const tokenData = (response.data as any).data || response.data as LoginResponse
+
+    if (!tokenData?.token) {
+      throw new Error('ไม่พบ token ในการตอบสนอง')
+    }
+
+    // ✅ ตรวจสอบอีเมล
+    if (!tokenData.email) {
+      throw new Error('ไม่พบอีเมลในการตอบสนอง')
+    }
+
+    // ✅ เก็บข้อมูลใน localStorage
+    localStorage.setItem('authToken', tokenData.token)
+    localStorage.setItem('userId', ((tokenData.id || tokenData.userId) as number)?.toString() || '')
+    localStorage.setItem('userEmail', tokenData.email)
+    localStorage.setItem('username', tokenData.displayName || tokenData.username || '')
+
+    success.value = true
+    error.value = ''
+
+    console.log('✅ Login successful:', {
+      token: tokenData.token.substring(0, 20) + '...',
+      userId: tokenData.id || tokenData.userId,
+      email: tokenData.email
+    })
+
+    // ✅ รีเซ็ตฟอร์ม
+    formData.value = {
+      email: '',
+      password: ''
+    }
+
+    // ✅ Emit event ให้ parent component (HeaderNav) ทำการปิด modal
+    emit('submit', tokenData)
+
+  } catch (err) {
+    const axiosError = err as AxiosError<{ message?: string }>
+
+    console.error('Login error:', err)
+
+    // ✅ ตรวจสอบข้อผิดพลาด
+    if (axiosError.response?.status === 400) {
+      error.value = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+    } else if (axiosError.response?.status === 401) {
+      error.value = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+    } else if (axiosError.response?.status === 404) {
+      error.value = 'ไม่พบผู้ใช้นี้ในระบบ'
+    } else if (axiosError.response?.status === 500) {
+      error.value = 'เกิดข้อผิดพลาดบน server กรุณาลองใหม่'
+    } else if (axiosError.message === 'Network Error') {
+      error.value = 'ไม่สามารถเชื่อมต่อกับ server'
+    } else if (axiosError.message.includes('timeout')) {
+      error.value = 'หมดเวลาการเชื่อมต่อ กรุณาลองใหม่'
+    } else {
+      error.value = axiosError.response?.data?.message || axiosError.message || 'เกิดข้อผิดพลาด'
+    }
+  } finally {
+    localLoading.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="form-container">
+    <!-- ✅ แสดงข้อความสำเร็จ -->
+    <div v-if="success" class="alert alert-success">
+      ✅ เข้าสู่ระบบสำเร็จ! กำลังเปลี่ยนหน้า...
+    </div>
+
+    <!-- ✅ แสดงข้อความข้อผิดพลาด -->
+    <div v-if="error" class="alert alert-error">
+      ❌ {{ error }}
+    </div>
+
+    <div class="form-group">
+      <label>อีเมล</label>
+      <input
+        type="email"
+        v-model="formData.email"
+        @keyup.enter="handleSubmit"
+        :disabled="loading || localLoading"
+        placeholder="example@email.com"
+        required
+      />
+    </div>
+    <div class="form-group">
+      <label>รหัสผ่าน</label>
+      <input
+        type="password"
+        v-model="formData.password"
+        @keyup.enter="handleSubmit"
+        :disabled="loading || localLoading"
+        placeholder="กรอกรหัสผ่านของคุณ"
+        required
+      />
+    </div>
+    <button @click="handleSubmit" :disabled="loading || localLoading" class="submit-btn">
+      {{ (loading || localLoading) ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
+    </button>
+  </div>
+</template>
+
 <template>
   <div class="form-container">
     <!-- ✅ แสดงข้อความสำเร็จ -->
@@ -39,147 +245,7 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios'
 
-export default {
-  name: 'LoginForm',
-  data() {
-    return {
-      formData: {
-        email: '',
-        password: ''
-      },
-      loading: false,
-      error: '',
-      success: false,
-      apiClient: axios.create({
-        baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-    }
-  },
-  methods: {
-    validateEmail(email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      return emailRegex.test(email)
-    },
-
-    validatePassword(password) {
-      return password && password.length >= 1
-    },
-
-    validateForm() {
-      // ✅ ตรวจสอบอีเมล (ต้องไม่ว่าง)
-      if (!this.formData.email || !this.formData.email.trim()) {
-        this.error = 'กรุณากรอกอีเมล'
-        return false
-      }
-
-      // ✅ ตรวจสอบรูปแบบอีเมล
-      if (!this.validateEmail(this.formData.email.trim())) {
-        this.error = 'รูปแบบอีเมลไม่ถูกต้อง (เช่น example@email.com)'
-        return false
-      }
-
-      // ✅ ตรวจสอบรหัสผ่าน (ต้องไม่ว่าง)
-      if (!this.formData.password) {
-        this.error = 'กรุณากรอกรหัสผ่าน'
-        return false
-      }
-
-      // ✅ ตรวจสอบความยาวรหัสผ่าน
-      if (!this.validatePassword(this.formData.password)) {
-        this.error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 1 ตัวอักษร'
-        return false
-      }
-
-      return true
-    },
-
-    async handleSubmit() {
-      // ✅ ล้างข้อความข้อผิดพลาดเดิม
-      this.error = ''
-
-      // ✅ ตรวจสอบฟอร์ม
-      if (!this.validateForm()) {
-        return
-      }
-
-      this.loading = true
-      this.success = false
-
-      try {
-        const response = await this.apiClient.post('/api/users/login', {
-          email: this.formData.email.trim(),
-          password: this.formData.password
-        })
-
-        // ✅ ตรวจสอบการตอบสนอง
-        const tokenData = response.data.data || response.data
-
-        if (!tokenData?.token) {
-          throw new Error('ไม่พบ token ในการตอบสนอง')
-        }
-
-        // ✅ ตรวจสอบอีเมล
-        if (!tokenData.email) {
-          throw new Error('ไม่พบอีเมลในการตอบสนอง')
-        }
-
-        // ✅ เก็บข้อมูลใน localStorage
-        localStorage.setItem('authToken', tokenData.token)
-        localStorage.setItem('userId', (tokenData.id || tokenData.userId)?.toString() || '')
-        localStorage.setItem('userEmail', tokenData.email)
-        localStorage.setItem('username', tokenData.displayName || tokenData.username || '')
-
-        this.success = true
-        this.error = ''
-
-        console.log('✅ Login successful:', {
-          token: tokenData.token.substring(0, 20) + '...',
-          userId: tokenData.id || tokenData.userId,
-          email: tokenData.email
-        })
-
-        // ✅ รีเซ็ตฟอร์ม
-        this.formData = {
-          email: '',
-          password: ''
-        }
-
-        // ✅ Emit event ให้ parent component (HeaderNav) ทำการปิด modal
-        this.$emit('submit', tokenData)
-
-      } catch (err) {
-        console.error('Login error:', err)
-
-        // ✅ ตรวจสอบข้อผิดพลาด
-        if (err.response?.status === 400) {
-          this.error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-        } else if (err.response?.status === 401) {
-          this.error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-        } else if (err.response?.status === 404) {
-          this.error = 'ไม่พบผู้ใช้นี้ในระบบ'
-        } else if (err.response?.status === 500) {
-          this.error = 'เกิดข้อผิดพลาดบน server กรุณาลองใหม่'
-        } else if (err.message === 'Network Error') {
-          this.error = 'ไม่สามารถเชื่อมต่อกับ server'
-        } else if (err.message.includes('timeout')) {
-          this.error = 'หมดเวลาการเชื่อมต่อ กรุณาลองใหม่'
-        } else {
-          this.error = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาด'
-        }
-      } finally {
-        this.loading = false
-      }
-    }
-  }
-}
-</script>
 
 <style scoped>
 .form-container {
