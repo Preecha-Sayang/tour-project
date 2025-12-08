@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import axios, { AxiosError } from 'axios'
 import LoginPopup from './LoginPopup.vue'
 
@@ -171,15 +172,23 @@ const getUserInitial = computed(() => {
 const getUserName = computed(() => {
   return user.value?.displayName || user.value?.email || 'ผู้ใช้'
 })
+
+const router = useRouter()
+
+function handleNavigateHome(): void {
+  router.push('/')
+}
 </script>
 
 <template>
   <div>
     <header>
       <nav>
-        <div class="logo">
-        <img src="/logo.png" alt="logopage" > 
-          เที่ยวไหนดี
+        <div class="logo-link" @click="handleNavigateHome">
+          <div class="logo">
+          <img src="/logo.png" alt="logopage" > 
+            เที่ยวไหนดี
+          </div>
         </div>
         <ul class="nav-links">
           <li v-if="user" class="user-section">
@@ -243,6 +252,7 @@ const getUserName = computed(() => {
       @tab-change="handleTabChange"
       @login="handleLogin"
       @register="handleRegister"
+      @submit="handleLogin"
     />
   </div>
 </template>
@@ -265,6 +275,10 @@ nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.logo-link {
+  cursor: pointer;
 }
 
 .logo {

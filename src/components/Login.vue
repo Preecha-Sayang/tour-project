@@ -41,9 +41,15 @@
 
 <script>
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'LoginForm',
+  setup() {
+    return {
+      router: useRouter()
+    }
+  },
   data() {
     return {
       formData: {
@@ -68,19 +74,32 @@ export default {
       return emailRegex.test(email)
     },
 
+    validatePassword(password) {
+      return password && password.length >= 1
+    },
+
     validateForm() {
-      if (!this.formData.email.trim()) {
+      // ✅ ตรวจสอบอีเมล (ต้องไม่ว่าง)
+      if (!this.formData.email || !this.formData.email.trim()) {
         this.error = 'กรุณากรอกอีเมล'
         return false
       }
 
-      if (!this.validateEmail(this.formData.email)) {
-        this.error = 'รูปแบบอีเมลไม่ถูกต้อง'
+      // ✅ ตรวจสอบรูปแบบอีเมล
+      if (!this.validateEmail(this.formData.email.trim())) {
+        this.error = 'รูปแบบอีเมลไม่ถูกต้อง (เช่น example@email.com)'
         return false
       }
 
+      // ✅ ตรวจสอบรหัสผ่าน (ต้องไม่ว่าง)
       if (!this.formData.password) {
         this.error = 'กรุณากรอกรหัสผ่าน'
+        return false
+      }
+
+      // ✅ ตรวจสอบความยาวรหัสผ่าน
+      if (!this.validatePassword(this.formData.password)) {
+        this.error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 1 ตัวอักษร'
         return false
       }
 
@@ -88,12 +107,15 @@ export default {
     },
 
     async handleSubmit() {
+      // ✅ ล้างข้อความข้อผิดพลาดเดิม
+      this.error = ''
+
+      // ✅ ตรวจสอบฟอร์ม
       if (!this.validateForm()) {
         return
       }
 
       this.loading = true
-      this.error = ''
       this.success = false
 
       try {
@@ -102,28 +124,32 @@ export default {
           password: this.formData.password
         })
 
-        // ✅ เก็บ token ใน localStorage
-        // Response structure: { data: { token, id, email, displayName } } หรือ { token, id, email, displayName }
+        // ✅ ตรวจสอบการตอบสนอง
         const tokenData = response.data.data || response.data
-        
-        if (tokenData?.token) {
-          localStorage.setItem('authToken', tokenData.token)
-          localStorage.setItem('userId', (tokenData.id || tokenData.userId)?.toString() || '')
-          localStorage.setItem('userEmail', tokenData.email || '')
-          localStorage.setItem('username', tokenData.displayName || tokenData.username || '')
-          
-          this.success = true
-          console.log('✅ Token saved successfully:', {
-            token: tokenData.token.substring(0, 20) + '...',
-            userId: tokenData.id || tokenData.userId,
-            email: tokenData.email
-          })
-        } else {
+
+        if (!tokenData?.token) {
           throw new Error('ไม่พบ token ในการตอบสนอง')
         }
 
+        // ✅ ตรวจสอบอีเมล
+        if (!tokenData.email) {
+          throw new Error('ไม่พบอีเมลในการตอบสนอง')
+        }
+
+        // ✅ เก็บข้อมูลใน localStorage
+        localStorage.setItem('authToken', tokenData.token)
+        localStorage.setItem('userId', (tokenData.id || tokenData.userId)?.toString() || '')
+        localStorage.setItem('userEmail', tokenData.email)
+        localStorage.setItem('username', tokenData.displayName || tokenData.username || '')
+
         this.success = true
         this.error = ''
+
+        console.log('✅ Login successful:', {
+          token: tokenData.token.substring(0, 20) + '...',
+          userId: tokenData.id || tokenData.userId,
+          email: tokenData.email
+        })
 
         // ✅ รีเซ็ตฟอร์ม
         this.formData = {
@@ -131,16 +157,17 @@ export default {
           password: ''
         }
 
-        console.log('Login success:', response.data)
-
         // ✅ Emit event ให้ parent component
         this.$emit('login-success', response.data)
 
-        // ✅ Redirect ไป home หรือ dashboard (ปรับตามต้องการ)
-        // setTimeout(() => {
-        //   window.location.href = '/dashboard'
-        // }, 1000)
+        // ✅ Redirect ไปหน้า Home หลังจาก 1 วินาที
+        setTimeout(() => {
+          this.router.push('/')
+        }, 1000)
       } catch (err) {
+        console.error('Login error:', err)
+
+        // ✅ ตรวจสอบข้อผิดพลาด
         if (err.response?.status === 400) {
           this.error = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
         } else if (err.response?.status === 401) {
@@ -151,11 +178,11 @@ export default {
           this.error = 'เกิดข้อผิดพลาดบน server กรุณาลองใหม่'
         } else if (err.message === 'Network Error') {
           this.error = 'ไม่สามารถเชื่อมต่อกับ server'
+        } else if (err.message.includes('timeout')) {
+          this.error = 'หมดเวลาการเชื่อมต่อ กรุณาลองใหม่'
         } else {
-          this.error = err.response?.data?.message || 'เกิดข้อผิดพลาด'
+          this.error = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาด'
         }
-
-        console.error('Login error:', err)
       } finally {
         this.loading = false
       }

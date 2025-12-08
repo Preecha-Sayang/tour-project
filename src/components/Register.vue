@@ -2,12 +2,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios, { AxiosError } from 'axios'
+import { useRouter } from 'vue-router'
 
 interface FormData {
   username: string
   email: string
   password: string
-  fullName: string
 }
 
 interface ApiResponse {
@@ -16,11 +16,12 @@ interface ApiResponse {
   data?: unknown
 }
 
+const router = useRouter()
+
 const formData = ref<FormData>({
   username: '',
   email: '',
-  password: '',
-  fullName: ''
+  password: ''
 })
 
 const loading = ref(false)
@@ -42,36 +43,45 @@ const validateEmail = (email: string): boolean => {
   return emailRegex.test(email)
 }
 
+const validateUsername = (username: string): boolean => {
+  return username.trim().length >= 3
+}
+
 const validatePassword = (password: string): boolean => {
   return password.length >= 6
 }
 
 const validateForm = (): boolean => {
+  // ✅ ตรวจสอบชื่อผู้ใช้ (ต้องไม่ว่าง และอย่างน้อย 3 ตัวอักษร)
   if (!formData.value.username.trim()) {
     error.value = 'กรุณากรอกชื่อผู้ใช้'
     return false
   }
 
+  if (!validateUsername(formData.value.username)) {
+    error.value = 'ชื่อผู้ใช้ต้องมีความยาวอย่างน้อย 3 ตัวอักษร'
+    return false
+  }
+
+  // ✅ ตรวจสอบอีเมล (ต้องไม่ว่าง)
   if (!formData.value.email.trim()) {
     error.value = 'กรุณากรอกอีเมล'
     return false
   }
 
+  // ✅ ตรวจสอบรูปแบบอีเมล
   if (!validateEmail(formData.value.email)) {
-    error.value = 'รูปแบบอีเมลไม่ถูกต้อง'
+    error.value = 'รูปแบบอีเมลไม่ถูกต้อง (เช่น example@email.com)'
     return false
   }
 
-  if (!formData.value.fullName.trim()) {
-    error.value = 'กรุณากรอกชื่อเต็ม'
-    return false
-  }
-
+  // ✅ ตรวจสอบรหัสผ่าน (ต้องไม่ว่าง)
   if (!formData.value.password) {
     error.value = 'กรุณากรอกรหัสผ่าน'
     return false
   }
 
+  // ✅ ตรวจสอบความยาวรหัสผ่าน
   if (!validatePassword(formData.value.password)) {
     error.value = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร'
     return false
@@ -82,37 +92,50 @@ const validateForm = (): boolean => {
 
 // ✅ Handle submit
 const handleSubmit = async (): Promise<void> => {
+  // ✅ ล้างข้อความข้อผิดพลาดเดิม
+  error.value = ''
+
   if (!validateForm()) {
     return
   }
 
   loading.value = true
-  error.value = ''
   success.value = false
 
   try {
     const response = await apiClient.post<ApiResponse>('/api/users/register', {
       username: formData.value.username.trim(),
       email: formData.value.email.trim(),
-      password: formData.value.password,
-      fullName: formData.value.fullName.trim()
+      password: formData.value.password
     })
+
+    // ✅ ตรวจสอบการตอบสนอง
+    if (!response.data) {
+      throw new Error('ไม่ได้รับการตอบสนองจากเซิร์ฟเวอร์')
+    }
 
     success.value = true
     error.value = ''
+
+    console.log('✅ Register success:', response.data)
 
     // ✅ รีเซ็ตฟอร์ม
     formData.value = {
       username: '',
       email: '',
-      password: '',
-      fullName: ''
+      password: ''
     }
 
-    console.log('Register success:', response.data)
+    // ✅ Redirect ไปหน้าแรก (Home) หลังจาก 2 วินาที
+    setTimeout(() => {
+      router.push('/')
+    }, 2000)
   } catch (err) {
     const axiosError = err as AxiosError<ApiResponse>
 
+    console.error('Register error:', err)
+
+    // ✅ ตรวจสอบข้อผิดพลาด
     if (axiosError.response?.status === 400) {
       error.value = axiosError.response.data?.message || 'ข้อมูลไม่ถูกต้อง'
     } else if (axiosError.response?.status === 409) {
@@ -121,11 +144,11 @@ const handleSubmit = async (): Promise<void> => {
       error.value = 'เกิดข้อผิดพลาดบน server กรุณาลองใหม่'
     } else if (axiosError.message === 'Network Error') {
       error.value = 'ไม่สามารถเชื่อมต่อกับ server'
+    } else if (axiosError.message.includes('timeout')) {
+      error.value = 'หมดเวลาการเชื่อมต่อ กรุณาลองใหม่'
     } else {
-      error.value = axiosError.response?.data?.message || 'เกิดข้อผิดพลาด: ' + err
+      error.value = axiosError.response?.data?.message || axiosError.message || 'เกิดข้อผิดพลาด'
     }
-
-    console.error('Register error:', err)
   } finally {
     loading.value = false
   }
@@ -143,7 +166,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
   <div class="form-container">
     <!-- ✅ แสดงข้อความสำเร็จ -->
     <div v-if="success" class="alert alert-success">
-      ✅ ลงทะเบียนสำเร็จ! กรุณาเข้าสู่ระบบ
+      ✅ ลงทะเบียนสำเร็จ! กำลังเปลี่ยนหน้า...
     </div>
 
     <!-- ✅ แสดงข้อความข้อผิดพลาด -->
@@ -158,7 +181,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
         v-model="formData.username"
         @keydown="handleKeyDown"
         :disabled="loading"
-        placeholder="เช่น john_doe"
+        placeholder="เช่น john_doe (อย่างน้อย 3 ตัวอักษร)"
       />
     </div>
 
@@ -170,17 +193,6 @@ const handleKeyDown = (e: KeyboardEvent): void => {
         @keydown="handleKeyDown"
         :disabled="loading"
         placeholder="example@email.com"
-      />
-    </div>
-
-    <div class="form-group">
-      <label>ชื่อเต็ม</label>
-      <input
-        type="text"
-        v-model="formData.fullName"
-        @keydown="handleKeyDown"
-        :disabled="loading"
-        placeholder="เช่น จอห์น โด"
       />
     </div>
 
