@@ -169,7 +169,7 @@ const handleSubmit = async (): Promise<void> => {
   <div class="form-container">
     <!-- ✅ แสดงข้อความสำเร็จ -->
     <div v-if="success" class="alert alert-success">
-      ✅ เข้าสู่ระบบสำเร็จ! กำลังเปลี่ยนหน้า...
+      ✅ เข้าสู่ระบบสำเร็จ!
     </div>
 
     <!-- ✅ แสดงข้อความข้อผิดพลาด -->
@@ -201,46 +201,6 @@ const handleSubmit = async (): Promise<void> => {
     </div>
     <button @click="handleSubmit" :disabled="loading || localLoading" class="submit-btn">
       {{ (loading || localLoading) ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
-    </button>
-  </div>
-</template>
-
-<template>
-  <div class="form-container">
-    <!-- ✅ แสดงข้อความสำเร็จ -->
-    <div v-if="success" class="alert alert-success">
-      ✅ เข้าสู่ระบบสำเร็จ! กำลังเปลี่ยนหน้า...
-    </div>
-
-    <!-- ✅ แสดงข้อความข้อผิดพลาด -->
-    <div v-if="error" class="alert alert-error">
-      ❌ {{ error }}
-    </div>
-
-    <div class="form-group">
-      <label>อีเมล</label>
-      <input
-        type="email"
-        v-model="formData.email"
-        @keyup.enter="handleSubmit"
-        :disabled="loading"
-        placeholder="example@email.com"
-        required
-      />
-    </div>
-    <div class="form-group">
-      <label>รหัสผ่าน</label>
-      <input
-        type="password"
-        v-model="formData.password"
-        @keyup.enter="handleSubmit"
-        :disabled="loading"
-        placeholder="กรอกรหัสผ่านของคุณ"
-        required
-      />
-    </div>
-    <button @click="handleSubmit" :disabled="loading" class="submit-btn">
-      {{ loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
     </button>
   </div>
 </template>

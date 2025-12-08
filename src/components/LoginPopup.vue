@@ -4,6 +4,13 @@ import { ref } from 'vue'
 import Login from './Login.vue'
 import Register from './Register.vue'
 
+interface RegisterData {
+  username: string
+  email: string
+  password: string
+  fullName: string
+}
+
 interface Props {
   show: boolean
   error: string
@@ -19,8 +26,8 @@ withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   close: []
   'tab-change': [isLogin: boolean]
-  login: [data: unknown]
-  register: [data: unknown]
+  login: [data: any]
+  register: [data: RegisterData]
 }>()
 
 const isLogin = ref(true)
@@ -30,7 +37,6 @@ const switchTab = (loginMode: boolean) => {
   emit('tab-change', loginMode)
 }
 </script>
-
 <template>
   <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
