@@ -1,11 +1,10 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router' 
 import Homepage from '../views/Homepage.vue'
 import Detailpage from '../views/Detailpage.vue'
 import Mytripspage from '../views/Mytripspage.vue'
 import Createtrippage from '../views/Createtrippage.vue'
 import Edittrippage from '../views/Edittrippage.vue'
-
 
 const routes: Array<RouteRecordRaw> = [
   { path: "/", component: Homepage },
@@ -16,7 +15,7 @@ const routes: Array<RouteRecordRaw> = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),  // ✅ เปลี่ยนจาก createWebHashHistory
   routes
 })
 
