@@ -9,7 +9,7 @@ import Edittrippage from '../views/Edittrippage.vue'
 
 const routes: Array<RouteRecordRaw> = [
   { path: "/", component: Homepage },
-  { path: '/detail/:id', name: 'Detail', component: Detailpage, props: true, meta: { requiresAuth: true } },
+  { path: '/detail/:id', name: 'Detail', component: Detailpage, props: true },
   { path: '/my-trips', name: 'MyTrips', component: Mytripspage, meta: { requiresAuth: true } },
   { path: '/create-trip', name: 'CreateTrip', component: Createtrippage, meta: { requiresAuth: true } },
   { path: '/edit-trip/:id', name: 'EditTrip', component: Edittrippage, props: true, meta: { requiresAuth: true } }
